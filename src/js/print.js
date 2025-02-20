@@ -42,7 +42,9 @@ const Print = {
       const images = printDocument.getElementsByTagName('img')
 
       if (images.length > 0) {
-        loadIframeImages(Array.from(images)).then(() => performPrint(iframeElement, params))
+        loadIframeImages(Array.from(images))
+        .then(() => performPrint(iframeElement, params))
+        .catch(error => performPrint(iframeElement, params))
       } else {
         performPrint(iframeElement, params)
       }
@@ -92,7 +94,8 @@ function loadIframeImages (images) {
   return Promise.all(promises)
 }
 
-function loadIframeImage (image) {
+/**原始代码 */
+function loadIframeImage_del (image) {
   return new Promise(resolve => {
     const pollImage = () => {
       !image || typeof image.naturalWidth === 'undefined' || image.naturalWidth === 0 || !image.complete
@@ -101,6 +104,39 @@ function loadIframeImage (image) {
     }
     pollImage()
   })
+}
+
+function loadIframeImage(image) {
+  return new Promise((resolve, reject) => {
+      // 定义图片加载成功的处理函数
+      const onLoadHandler = () => {
+          // 移除事件监听器，避免内存泄漏
+          image.removeEventListener('load', onLoadHandler);
+          image.removeEventListener('error', onErrorHandler);
+          resolve();
+      };
+
+      // 定义图片加载失败的处理函数
+      const onErrorHandler = () => {
+          // 移除事件监听器，避免内存泄漏
+          image.removeEventListener('load', onLoadHandler);
+          image.removeEventListener('error', onErrorHandler);
+          reject(new Error('图片加载失败'));
+      };
+
+      // 添加事件监听器
+      image.addEventListener('load', onLoadHandler);
+      image.addEventListener('error', onErrorHandler);
+
+      // 如果图片已经加载完成或失败，手动触发相应的处理函数
+      if (image.complete) {
+          if (image.naturalWidth !== 0) {
+              onLoadHandler();
+          } else {
+              onErrorHandler();
+          }
+      }
+  });
 }
 
 export default Print
